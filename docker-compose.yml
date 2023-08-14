@@ -1,0 +1,63 @@
+networks:
+    # Database master-slave communication network
+    database_replication_net:
+        driver: bridge
+    
+    # Database master node network
+    database_master_net:
+        driver: bridge
+    
+    # Database slave node network
+    database_slave_net:
+        driver: bridge
+
+volumes:
+    # Database master node data
+    master_data: {}
+
+    # Database slave node data
+    slave_data: {}
+
+services:
+    # This writeonly master refers to 'Notes service'
+    notes-database-master:
+        image: bitnami/postgresql:latest
+        networks:
+            - database_replication_net
+            - database_master_net
+        environment:
+            - POSTGRESQL_REPLICATION_MODE=master
+            - POSTGRESQL_SYNCHRONOUS_COMMIT_MODE=on
+            - POSTGRESQL_NUM_SYNCHRONOUS_REPLICAS=2
+            - POSTGRESQL_REPLICATION_USER=repl_user
+            - POSTGRESQL_REPLICATION_PASSWORD=repl_password
+
+            - POSTGRESQL_DATABASE=notes_database
+            - POSTGRESQL_USER=enzulode
+            - POSTGRESQL_PASSWORD=password
+        volumes:
+            - master_data:/bitnami/postgresql
+        ports:
+            - "58040:5432"
+    
+    # This readonly slave refers to 'Local notes calculation service'
+    notes-database-slave:
+        image: bitnami/postgresql:latest
+        networks:
+            - database_replication_net
+            - database_slave_net
+        environment:
+            - POSTGRESQL_REPLICATION_MODE=slave
+            - POSTGRESQL_MASTER_HOST=notes-database-master
+            - POSTGRESQL_MASTER_PORT_NUMBER=5432
+            - POSTGRESQL_REPLICATION_USER=repl_user
+            - POSTGRESQL_REPLICATION_PASSWORD=repl_password
+
+            - POSTGRESQL_USER=enzulode
+            - POSTGRESQL_PASSWORD=password
+        volumes:
+            - slave_data:/bitnami/postgresql
+        ports:
+            - "58080:5432"
+        depends_on:
+            - notes-database-master
