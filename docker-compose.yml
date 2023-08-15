@@ -11,12 +11,19 @@ networks:
     database_slave_net:
         driver: bridge
 
+    # RabbitMQ network
+    message_broker_net:
+      driver: bridge
+
 volumes:
     # Database master node data
     master_data: {}
 
     # Database slave node data
     slave_data: {}
+
+    # RabbitMQ data
+    rabbitmq_data: {}
 
 services:
     # This writeonly master refers to 'Notes service'
@@ -61,3 +68,20 @@ services:
             - "58080:5432"
         depends_on:
             - notes-database-master
+    
+    # This message broker instance refers to the whole project
+    notes-rabbit-message-broker:
+      image: rabbitmq:3.12.2-management
+      container_name: notes_rabit_message_broker
+      hostname: notes-rabbit-message-broker
+      networks:
+        - message_broker_net
+      environment:
+        - RABBITMQ_DEFAULT_USER=enzulode
+        - RABBITMQ_DEFAULT_PASS=password
+        - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-rabbit disk_free_limit 2147483648
+      volumes:
+        - ./rabbitmq_data:/var/lib/rabbitmq
+      ports:
+        - "5672:5672"
+        - "15672:15672"
